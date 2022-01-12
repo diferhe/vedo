@@ -914,6 +914,7 @@ class Volume(vtk.vtkVolume, BaseGrid, BaseVolume):
                  dims=None,
                  origin=None,
                  mapper='smart',
+                 indepComponents=True
         ):
 
         vtk.vtkVolume.__init__(self)
@@ -984,19 +985,21 @@ class Volume(vtk.vtkVolume, BaseGrid, BaseVolume):
                 if len(inputobj.shape)==1:
                     varr = utils.numpy2vtk(inputobj, dtype=float)
                 else:
-                    if len(inputobj.shape)>2:
-                        inputobj = np.transpose(inputobj, axes=[2, 1, 0])
-                    varr = utils.numpy2vtk(inputobj.ravel(order='F'), dtype=float)
+                    if len(inputobj.shape)==4:
+                        arr = inputobj.ravel(order='C').reshape((-1, inputobj.shape[3]))
+                    else:
+                        arr = inputobj.ravel(order='C')
+                    varr = utils.numpy_to_vtk(arr)    
                 varr.SetName('input_scalars')
 
                 img = vtk.vtkImageData()
                 if dims is not None:
                     img.SetDimensions(dims)
                 else:
-                    if len(inputobj.shape)==1:
+                    if len(inputobj.shape)<3:
                         colors.printc("Error: must set dimensions (dims keyword) in Volume.", c='r')
                         raise RuntimeError()
-                    img.SetDimensions(inputobj.shape)
+                    img.SetDimensions(inputobj.shape[:3][::-1])
                 img.GetPointData().AddArray(varr)
                 img.GetPointData().SetActiveScalars(varr.GetName())
 
@@ -1049,6 +1052,7 @@ class Volume(vtk.vtkVolume, BaseGrid, BaseVolume):
         self.GetProperty().SetShade(True)
         self.GetProperty().SetInterpolationType(1)
         self.GetProperty().SetScalarOpacityUnitDistance(alphaUnit)
+        self.GetProperty().SetIndependentComponents(indepComponents)
 
         # remember stuff:
         self._mode = mode
