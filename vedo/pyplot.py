@@ -2821,6 +2821,7 @@ def cornerHistogram(
     lines=True,
     dots=False,
     nmax=None,
+    scalar_idx=None
 ):
     """
     Build a histogram from a list of values in n bins.
@@ -2838,8 +2839,12 @@ def cornerHistogram(
         - (x, y), as fraction of the rendering window
     """
     if hasattr(values, '_data'):
-        values = utils.vtk2numpy(values._data.GetPointData().GetScalars())
-
+        img_scalar = values._data.GetPointData().GetScalars() # get active array
+        n_comp = img_scalar.GetNumberOfComponents() # get number of components
+        scalar_idx = scalar_idx or (0 if n_comp < 2 else (n_comp - 1))
+        values = utils.vtk2numpy(img_scalar)
+        if len(values.shape) > 1:
+            values = values[scalar_idx]
     n = values.shape[0]
     if nmax and nmax < n:
         # subsample:

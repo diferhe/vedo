@@ -7,6 +7,7 @@ from vedo.colors import printc, colorMap, getColor
 from vedo.shapes import Text2D, Line, Ribbon, Spline
 from vedo.pointcloud import Points, fitPlane
 from vedo import settings
+from vedo.volume import Volume
 import numpy as np
 import os
 
@@ -25,7 +26,7 @@ _kact=0
 
 ##########################################################################
 def SlicerPlotter(
-           volume,
+           volume: Volume,
            alpha=1,
            cmaps=('gist_ncar_r', "hot_r", "bone_r", "jet", "Spectral_r"),
            map2cells=False,  # buggy
@@ -83,7 +84,7 @@ def SlicerPlotter(
     la, ld = 0.7, 0.3 #ambient, diffuse
     dims = volume.dimensions()
     data = volume.pointdata[0]
-    rmin, rmax = volume.imagedata().GetScalarRange()
+    rmin, rmax = volume.scalarRange()
     if clamp:
         hdata, edg = np.histogram(data, bins=50)
         logdata = np.log(hdata+1)
@@ -217,7 +218,7 @@ def SlicerPlotter(
 
 
 ########################################################################################
-def Slicer2d(volume, levels=(None, None), size=(900,900), bg='k9', zoom=1.2):
+def Slicer2d(volume: Volume, levels=(None, None), size=(900,900), bg='k9', zoom=1.2):
     """
     Create a 2D window with a single slice of a Volume,
     wich can be oriented arbitrarily in space.
@@ -281,8 +282,8 @@ def RayCastPlotter(volume):
         return vp
     # printc("GPU Ray-casting tool", c="b", invert=1)
 
-    smin, smax = img.GetScalarRange()
-
+    smin, smax = volume.scalarRange()
+    print(smax, smin)
     x0alpha = smin + (smax - smin) * 0.25
     x1alpha = smin + (smax - smin) * 0.5
     x2alpha = smin + (smax - smin) * 1.0
@@ -419,8 +420,8 @@ def RayCastPlotter(volume):
     return vp
 
 
-def IsosurfaceBrowser(volume, c=None, alpha=1, lego=False, cmap='hot', pos=None,
-                      delayed=False):
+def IsosurfaceBrowser(volume: Volume, c=None, alpha=1, lego=False, cmap='hot', pos=None,
+                      delayed=False, input_array=None):
     """
     Generate a ``Plotter`` window for Volume isosurfacing using a slider.
     Returns the ``Plotter`` object.
@@ -454,7 +455,10 @@ def IsosurfaceBrowser(volume, c=None, alpha=1, lego=False, cmap='hot', pos=None,
         slidertitle = "threshold"
         showval = True
         mesh = volume.isosurface(threshold)
-        mesh.color(c).alpha(alpha)
+        if cmap is not None:
+            mesh.color(c).alpha(alpha)
+        else:
+            mesh.cmap(cmap, input_array).alpha(alpha)
 
     if pos is not None:
         sliderpos = pos

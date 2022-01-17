@@ -1,3 +1,4 @@
+from __future__ import annotations
 import glob, os
 import numpy as np
 import vtk
@@ -7,6 +8,10 @@ import vedo.utils as utils
 from vedo.mesh import Mesh
 from vedo.base import BaseGrid, Base3DProp
 from deprecated import deprecated
+
+from typing import TypeVar
+
+T = TypeVar('T')
 
 __doc__ = ("""Submodule extending the ``vtkVolume`` object functionality."""
     + docs._defs
@@ -291,9 +296,12 @@ class BaseVolume:
         """Return the nr. of voxels in the 3 dimensions."""
         return np.array(self._data.GetDimensions())
 
-    def scalarRange(self):
+    def scalarRange(self, idx=None):
         """Return the range of the scalar values."""
-        return np.array(self._data.GetScalarRange())
+        img_scalar = self._data.GetPointData().GetScalars() # get active array
+        n_comp = img_scalar.GetNumberOfComponents() # get number of components
+        scalar_idx = idx or (0 if n_comp < 2 else (n_comp - 1))
+        return np.array(img_scalar.GetRange(scalar_idx))
 
     def spacing(self, s=None):
         """Set/get the voxels size in the 3 dimensions."""
@@ -1069,7 +1077,7 @@ class Volume(vtk.vtkVolume, BaseGrid, BaseVolume):
         self._mapper.Update()
         return self
 
-    def mode(self, mode=None):
+    def mode(self: T, mode=None) -> T:
         """Define the volumetric rendering style.
 
             - 0, composite rendering
@@ -1132,7 +1140,7 @@ class Volume(vtk.vtkVolume, BaseGrid, BaseVolume):
         self._mode = mode
         return self
 
-    def shade(self, status=None):
+    def shade(self: T, status=None) -> T:
         """
         Set/Get the shading of a Volume.
         Shading can be further controlled with ``volume.lighting()`` method.
@@ -1155,7 +1163,7 @@ class Volume(vtk.vtkVolume, BaseGrid, BaseVolume):
         """
         return self.color(c, alpha, vmin, vmax)
 
-    def jittering(self, status=None):
+    def jittering(self: T, status=None) -> T:
         """If `jittering` is `True`, each ray traversal direction will be perturbed slightly
         using a noise-texture to get rid of wood-grain effects.
         """
@@ -1165,7 +1173,7 @@ class Volume(vtk.vtkVolume, BaseGrid, BaseVolume):
             self._mapper.SetUseJittering(status)
         return self
 
-    def alphaGradient(self, alphaGrad, vmin=None, vmax=None):
+    def alphaGradient(self: T, alphaGrad, vmin=None, vmax=None) -> T:
         """
         Assign a set of tranparencies to a volume's gradient
         along the range of the scalar value.
@@ -1178,11 +1186,14 @@ class Volume(vtk.vtkVolume, BaseGrid, BaseVolume):
         The format for alphaGrad is the same as for method ``volume.alpha()``.
 
         |read_volume2| |read_volume2.py|_
-        """
+        """      
+        img_scalar = self._data.GetPointData().GetScalars() # get active array
+        n_comp = img_scalar.GetNumberOfComponents() # get number of components
+        alphaidx = 0 if n_comp < 2 else (n_comp - 1)
         if vmin is None:
-            vmin, _ = self._data.GetScalarRange()
+            vmin, _ = img_scalar.GetRange(alphaidx)
         if vmax is None:
-            _, vmax = self._data.GetScalarRange()
+            _, vmax = img_scalar.GetRange(alphaidx)
         self._alphaGrad = alphaGrad
         volumeProperty = self.GetProperty()
         if alphaGrad is None:
@@ -1211,7 +1222,7 @@ class Volume(vtk.vtkVolume, BaseGrid, BaseVolume):
             gotf.AddPoint(vmax, alphaGrad)
         return self
 
-    def componentWeight(self, i, weight):
+    def componentWeight(self: T, i, weight) -> T:
         """
         Set the scalar component weight in range [0,1].
         """

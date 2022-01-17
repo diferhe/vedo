@@ -1,9 +1,14 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import vedo.mesh
 import numpy as np
 import vtk
 import vedo
 import vedo.colors as colors
 import vedo.utils as utils
 from deprecated import deprecated
+
 
 __doc__ = (
     """Base classes. Do not instantiate these."""
@@ -20,6 +25,9 @@ __all__ = [
            "streamLines",
 ]
 
+from typing import TypeVar
+
+T = TypeVar('T')
 
 ###############################################################################
 class _DataArrayHelper(object):
@@ -1404,7 +1412,7 @@ class BaseGrid(BaseActor):
         return conn
 
 
-    def color(self, col, alpha=None, vmin=None, vmax=None):
+    def color(self: T, col, alpha=None, vmin=None, vmax=None) -> T:
         """
         Assign a color or a set of colors along the range of the scalar value.
         A single constant color can also be assigned.
@@ -1419,11 +1427,14 @@ class BaseGrid(BaseActor):
         :param float vmin: force the min of the scalar range to be this value
         :param float vmax: force the max of the scalar range to be this value
         """
+        img_scalar = self._data.GetPointData().GetScalars() # get active array
+        n_comp = img_scalar.GetNumberOfComponents() # get number of components
+        coloridx = 0
         # superseeds method in Points, Mesh
         if vmin is None:
-            vmin, _ = self._data.GetScalarRange()
+            vmin, _ = img_scalar.GetRange(coloridx)
         if vmax is None:
-            _, vmax = self._data.GetScalarRange()
+            _, vmax = img_scalar.GetRange(coloridx)
         ctf = self.GetProperty().GetRGBTransferFunction()
         ctf.RemoveAllPoints()
         self._color = col
@@ -1463,7 +1474,7 @@ class BaseGrid(BaseActor):
             self.alpha(alpha, vmin=vmin, vmax=vmax)
         return self
 
-    def alpha(self, alpha, vmin=None, vmax=None):
+    def alpha(self: T, alpha, vmin=None, vmax=None) -> T:
         """
         Assign a set of tranparencies along the range of the scalar value.
         A single constant value can also be assigned.
@@ -1478,10 +1489,13 @@ class BaseGrid(BaseActor):
         Then all cells below -5 will be completely transparent, cells with a scalar value of 35
         will get an opacity of 40% and above 123 alpha is set to 90%.
         """
+        img_scalar = self._data.GetPointData().GetScalars() # get active array
+        n_comp = img_scalar.GetNumberOfComponents() # get number of components
+        alphaidx = 0 if n_comp < 2 else (n_comp - 1)
         if vmin is None:
-            vmin, _ = self._data.GetScalarRange()
+            vmin, _ = img_scalar.GetRange(alphaidx)
         if vmax is None:
-            _, vmax = self._data.GetScalarRange()
+            _, vmax = img_scalar.GetRange(alphaidx)
         otf = self.GetProperty().GetScalarOpacity()
         otf.RemoveAllPoints()
         self._alpha = alpha
@@ -1508,7 +1522,7 @@ class BaseGrid(BaseActor):
 
         return self
 
-    def alphaUnit(self, u=None):
+    def alphaUnit(self: T, u=None) -> T:
         """
         Defines light attenuation per unit length. Default is 1.
         The larger the unit length, the further light has to travel to attenuate the same amount.
@@ -1533,7 +1547,7 @@ class BaseGrid(BaseActor):
         sf.Update()
         return self._update(sf.GetOutput())
 
-    def isosurface(self, threshold=None, largest=False):
+    def isosurface(self, threshold=None, largest=False, scalar_idx=None):
         """Return an ``Mesh`` isosurface extracted from the ``Volume`` object.
 
         :param float,list threshold: value or list of values to draw the isosurface(s)
@@ -1541,9 +1555,13 @@ class BaseGrid(BaseActor):
 
         |isosurfaces| |isosurfaces.py|_
         """
-        scrange = self._data.GetScalarRange()
-        cf = vtk.vtkContourFilter()
+        scrange = self.scalarRange()
+        cf = vtk.vtkContourFilter()	
         cf.SetInputData(self._data)
+        ncomp = self._data.GetNumberOfScalarComponents()
+        if ncomp > 1:
+            scalar_idx = scalar_idx or (ncomp - 1)
+            cf.SetArrayComponent(1)
         cf.UseScalarTreeOn()
         cf.ComputeNormalsOn()
 
@@ -1674,7 +1692,7 @@ class BaseGrid(BaseActor):
         return self._update(cout)
 
 
-    def cutWithMesh(self, mesh, invert=False, wholeCells=False, onlyBoundary=False):
+    def cutWithMesh(self: T, mesh, invert=False, wholeCells=False, onlyBoundary=False) -> T:
         """
         Cut a UGrid, TetMesh or Volume mesh with a Mesh.
 
